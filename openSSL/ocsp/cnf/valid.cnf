@@ -1,0 +1,23 @@
+[req]
+prompt = no
+req_extensions = v3_req
+distinguished_name = dn
+
+[dn]
+C = RU
+ST = Moscow
+L = Moscow
+O = vericheveo
+OU = vericheveo P1_3
+CN = vericheveo OCSP Valid
+emailAddress = vericheveo@example.com
+
+[v3_req]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature
+extendedKeyUsage = critical,serverAuth,clientAuth
+subjectAltName = @alt_names
+authorityInfoAccess = OCSP;URI:http://ocsp.vericheveo.ru:2560
+
+[alt_names]
+DNS.1 = ocsp.valid.vericheveo.ru

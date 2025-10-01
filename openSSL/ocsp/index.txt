@@ -1,0 +1,2 @@
+V	251228021343Z		65F3F1B1FDC85AF66AC5ABE46F2D42DED4EFFB06	unknown	/C=RU/ST=Moscow/L=Moscow/O=vericheveo/OU=vericheveo P1_3/CN=vericheveo OCSP Valid/emailAddress=vericheveo@example.com
+R	251228021346Z	250929021656Z	65F3F1B1FDC85AF66AC5ABE46F2D42DED4EFFB07	unknown	/C=RU/ST=Moscow/L=Moscow/O=vericheveo/OU=vericheveo P1_3/CN=vericheveo OCSP Revoked/emailAddress=vericheveo@example.com
