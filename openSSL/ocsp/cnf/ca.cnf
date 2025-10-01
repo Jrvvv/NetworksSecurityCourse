@@ -1,0 +1,17 @@
+[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+database = index.txt
+serial = vericheveo-mstpr251-intr.srl
+crlnumber = crlnumber
+certificate = vericheveo-mstpr251-intr.crt
+private_key = vericheveo-mstpr251-intr.key
+default_days = 365
+default_crl_days = 30
+default_md = sha256
+
+crl_extensions = crl_ext
+
+[ crl_ext ]
+authorityKeyIdentifier=keyid:always
