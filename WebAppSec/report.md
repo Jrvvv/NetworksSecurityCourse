@@ -20,8 +20,8 @@ sudo docker compose up
 ```bash
 # in first terminal window
 ctrl-c
-docker compose down
-docker compose up
+sudo docker compose down
+sudo docker compose up
 ```
 
 5. click on "Create / Reset Database"
@@ -30,7 +30,7 @@ docker compose up
 ```bash
 # in second terminal
 cd laba-WAF
-docker exec -it kali bash
+sudo docker exec -it kali bash
 weevely http://localhost/hackable/uploads/bd.php 123
 :sql_console -user app -passwd vulnerables -host localhost -database dvwa -dbms mysql
 # 7f778a28b22e0e3a0bdb7089acb1dd19 - is MD5(vericheveo)
@@ -51,7 +51,7 @@ sudo tcpdump -i any -w vericheveo-sqli-access-all.pcap port 80
 
 10. on http://localhost/vulnerabilities/sqli/ in "User ID" form paste
 ```
-1’ OR ’1’=’1
+1' UNION SELECT first_name, last_name FROM users WHERE '1'='1
 ```
 
 11. Click "Submit" button (you should see list of all users)
@@ -60,7 +60,7 @@ sudo tcpdump -i any -w vericheveo-sqli-access-all.pcap port 80
 
 13. Open this pcap in Wireshark
 
-15. Filter: ```ip.src==127.0.0.1 && ip.dst==127.0.0.1 && http```
+15. Filter: ```(ip.src==127.0.0.1 || ip.dst==127.0.0.1) && http```
 
 16. Save as "Export Specified Packets" in ```vericheveo-sqli-access.pcap```
 
@@ -87,15 +87,14 @@ sudo tcpdump -i any -w vericheveo-ws-access-all.pcap port 80
 [+] Browse the filesystem or execute commands starts the connection
 [+] to the target. Type :help for more information.
 
-weevely> 
-www-data@4e6b790152ab:/var/www/html/hackable/uploads $ pwd
+weevely> pwd
 ```
 
 20. Stop tcpdump by ```ctrl-c``` in third terminal.
 
 21. Open this pcap in Wireshark
 
-22. Filter: ```ip.src==127.0.0.1 && ip.dst==127.0.0.1 && http```
+22. Filter: ```(ip.src==127.0.0.1 || ip.dst==127.0.0.1) && http```
 
 23. Save as "Export Specified Packets" in ```vericheveo-ws-access.pcap```
 
@@ -124,8 +123,8 @@ http:
             - SecResponseBodyMimeType application/json
             # Написать правило здесь. Документация: https://coraza.io/docs/seclang/directives/
             # - SecRule ...
-            - SecRule ARGS "@detectSQLi" "id:101,phase:2,deny,status:403"
-            - SecRule REQUEST_URI "@rx /hackable/uploads/.*\.php" "id:102,phase:1,deny,status:403"
+            - SecRule ARGS "@detectSQLi" "id:200,phase:2,deny,status:403"
+            - SecRule REQUEST_URI "@rx /hackable/uploads/.*\.php" "id:300,phase:1,deny,status:403"
 
   services:
     dvwa:
@@ -143,7 +142,7 @@ sudo tcpdump -i any -w vericheveo-sqli-block-all.pcap port 80
 
 27. on http://localhost/vulnerabilities/sqli/ in "User ID" form paste
 ```
-1’ OR ’1’=’1
+1' UNION SELECT first_name, last_name FROM users WHERE '1'='1
 ```
 
 28. Click "Submit" button (you should get 403 http error code)
@@ -152,10 +151,9 @@ sudo tcpdump -i any -w vericheveo-sqli-block-all.pcap port 80
 
 30. Open this pcap in Wireshark
 
-31. Filter: ```ip.src==127.0.0.1 && ip.dst==127.0.0.1 && http```
+31. Filter: ```(ip.src==127.0.0.1 || ip.dst==127.0.0.1) && http```
 
 32. Save as "Export Specified Packets" in ```vericheveo-sqli-block.pcap```
-
 
 33. In second terminal (kali with weevely) exit from weevely by ```ctrl-c```, back in kali shell.
 
@@ -180,8 +178,7 @@ sudo tcpdump -i any -w vericheveo-ws-block-all.pcap port 80
 [+] Browse the filesystem or execute commands starts the connection
 [+] to the target. Type :help for more information.
 
-weevely> 
-www-data@4e6b790152ab:/var/www/html/hackable/uploads $ pwd
+weevely> pwd
 The request triggers the error 403, please verify running code
 Backdoor communication failed, check URL availability and password
 ```
@@ -190,6 +187,6 @@ Backdoor communication failed, check URL availability and password
 
 37. Open this pcap in Wireshark
 
-38. Filter: ```ip.src==127.0.0.1 && ip.dst==127.0.0.1 && http```
+38. Filter: ```(ip.src==127.0.0.1 || ip.dst==127.0.0.1) && http````
 
 39. Save as "Export Specified Packets" in ```vericheveo-ws-block.pcap```
