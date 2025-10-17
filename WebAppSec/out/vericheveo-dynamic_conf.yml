@@ -1,0 +1,28 @@
+http:
+  routers:
+    to-dvwa:
+      rule: "Host(`localhost`) && PathPrefix(`/`)"
+      middlewares:
+      - waf
+      service: dvwa
+
+  middlewares:
+    waf:
+      plugin:
+        coraza:
+          directives:
+            - SecRuleEngine On
+            - SecDebugLog /dev/stdout
+            - SecDebugLogLevel 9
+            - SecRequestBodyAccess On
+            - SecResponseBodyAccess On
+            - SecResponseBodyMimeType application/json
+            # Написать правило здесь. Документация: https://coraza.io/docs/seclang/directives/
+            # - SecRule ...
+            # - SecRule ARGS "@detectSQLi" "id:200,phase:2,deny,status:403"
+            # - SecRule REQUEST_URI "@rx /hackable/uploads/.*\.php" "id:300,phase:1,deny,status:403"
+  services:
+    dvwa:
+      loadBalancer:
+        servers:
+        - url: http://dvwa
