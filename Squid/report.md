@@ -2,7 +2,7 @@
 * Installing tools:
 ```
 sudo apt update
-sudo apt install squid curl wireshark -y
+sudo apt install squid squid-openssl curl wireshark openssl -y
 ```
 
 # Basic Squid settings
@@ -226,4 +226,197 @@ curl -v --proxy http://localhost:3128 http://httpbin.org/ip
 < Via: 1.1 jrvv-desktop (squid/5.9)
 < Connection: keep-alive
 <
+```
+
+# SSL Squid settings
+
+## Create root CA
+* According to corresponding part of `openSSL/report.md`
+
+* Generate Squid CA certificate
+```
+export name=vericheveo
+export group=mstpr251
+export prefix="$name-$group"
+export email=vericheveo@mail.ru
+export ca_crt="$prefix-ca.crt"
+
+openssl genrsa -out "$prefix"-bump.key 4096
+
+openssl req -new -key "$prefix"-bump.key -passin pass:"$name" \
+    -subj "/C=RU/ST=Moscow/L=Moscow/O=$name/OU=$name P3_2/CN=$name Squid CA/emailAddress=$email" \
+    -addext "basicConstraints=critical,pathlen:0,CA:TRUE" \
+    -addext "keyUsage=critical,digitalSignature,keyCertSign,cRLSign" \
+    -out "$prefix"-bump.csr
+
+openssl x509 -req -days 365 -CA "$prefix"-ca.crt -CAkey "$prefix"-ca.key \
+    -CAcreateserial -CAserial serial -in "$prefix"-bump.csr \
+    -out "$prefix"-bump.crt -passin pass:"$name" -copy_extensions copy
+```
+
+* Generate certificates chain for Squid
+```
+cat "$prefix"-bump.crt "$prefix"-ca.crt > "$prefix"-chain.crt
+```
+
+## Access limitation with SNI
+* Repeat actions from `Basic Squid settings` part.
+
+* Add to `/etc/squid/squid.conf`:
+```
+acl localnet src 0.0.0.1-0.255.255.255	# RFC 1122 "this" network (LAN)
+acl localnet src 10.0.0.0/8		# RFC 1918 local private network (LAN)
+acl localnet src 100.64.0.0/10		# RFC 6598 shared address space (CGN)
+acl localnet src 169.254.0.0/16 	# RFC 3927 link-local (directly plugged) machines
+acl localnet src 172.16.0.0/12		# RFC 1918 local private network (LAN)
+acl localnet src 192.168.0.0/16		# RFC 1918 local private network (LAN)
+acl localnet src fc00::/7       	# RFC 4193 local private network range
+acl localnet src fe80::/10      	# RFC 4291 link-local (directly plugged) machines
+
+acl SSL_ports port 443
+acl Safe_ports port 80		# http
+acl Safe_ports port 21		# ftp
+acl Safe_ports port 443		# https
+acl Safe_ports port 70		# gopher
+acl Safe_ports port 210		# wais
+acl Safe_ports port 1025-65535	# unregistered ports
+acl Safe_ports port 280		# http-mgmt
+acl Safe_ports port 488		# gss-http
+acl Safe_ports port 591		# filemaker
+acl Safe_ports port 777		# multiling http
+
+http_access deny !Safe_ports
+
+http_access allow localhost manager
+http_access deny manager
+
+http_access allow localhost
+http_access deny to_localhost
+
+http_access allow localnet
+
+acl identme ssl::server_name ident.me
+acl httpbin ssl::server_name httpbin.org
+
+http_access allow identme
+http_access allow httpbin
+
+http_access deny all
+http_port 3128 ssl-bump dynamic_cert_mem_cache_size=4MB cert=/squid/vericheveo-mstpr251-chain.crt key=/squid/vericheveo-mstpr251-bump.key generate-host-certificates=on
+sslcrtd_program /usr/lib/squid/security_file_certgen -s /var/spool/squid/ssl_db -M 4MB
+
+acl step1 at_step SslBump1
+ssl_bump peek step1
+ssl_bump splice httpbin
+ssl_bump terminate all
+
+refresh_pattern ^ftp:		1440	20%	10080
+refresh_pattern -i (/cgi-bin/|\?) 0	0%	0
+refresh_pattern .		0	20%	4320
+```
+
+* Start squid container:
+```
+docker run -d --name squid -v .:/squid -p 3128:3128 -it yutony/squid:4.10 \
+    squid -f /squid/"$prefix"-acl.conf -NYC
+```
+
+* Create empty log file:
+```
+touch "$prefix"-acl.log
+```
+
+* Add it in wireshark
+```
+sudo wireshark -k -i any
+# Edit -> Preferences -> Protocols
+```
+
+* Send queries:
+```
+export proxy="http://127.0.0.1:3128"
+SSLKEYLOGFILE="$prefix"-acl.log curl --tlsv1.2 --tls-max 1.2 -v --proxy $proxy https://ident.me
+SSLKEYLOGFILE="$prefix"-acl.log curl --tlsv1.2 --tls-max 1.2 -v --proxy $proxy -k https://httpbin.org/get?bio="$name"
+```
+
+* Stop Squid:
+```
+docker rm "$(docker stop squid)"
+```
+
+## Traffic sniffing
+* Add to `/etc/squid/squid.conf`:
+```
+acl localnet src 0.0.0.1-0.255.255.255	# RFC 1122 "this" network (LAN)
+acl localnet src 10.0.0.0/8		# RFC 1918 local private network (LAN)
+acl localnet src 100.64.0.0/10		# RFC 6598 shared address space (CGN)
+acl localnet src 169.254.0.0/16 	# RFC 3927 link-local (directly plugged) machines
+acl localnet src 172.16.0.0/12		# RFC 1918 local private network (LAN)
+acl localnet src 192.168.0.0/16		# RFC 1918 local private network (LAN)
+acl localnet src fc00::/7       	# RFC 4193 local private network range
+acl localnet src fe80::/10      	# RFC 4291 link-local (directly plugged) machines
+
+acl SSL_ports port 443
+acl Safe_ports port 80		# http
+acl Safe_ports port 21		# ftp
+acl Safe_ports port 443		# https
+acl Safe_ports port 70		# gopher
+acl Safe_ports port 210		# wais
+acl Safe_ports port 1025-65535	# unregistered ports
+acl Safe_ports port 280		# http-mgmt
+acl Safe_ports port 488		# gss-http
+acl Safe_ports port 591		# filemaker
+acl Safe_ports port 777		# multiling http
+
+http_access deny !Safe_ports
+
+http_access allow localhost manager
+http_access deny manager
+
+http_access allow localhost
+http_access deny to_localhost
+
+http_access allow localnet
+
+http_access deny all
+
+http_port 3128 ssl-bump dynamic_cert_mem_cache_size=4MB cert=/squid/vericheveo-mstpr251-chain.crt key=/squid/vericheveo-mstpr251-bump.key generate-host-certificates=on
+sslcrtd_program /usr/lib/squid/security_file_certgen -s /var/spool/squid/ssl_db -M 4MB
+
+acl httpbin ssl::server_name httpbin.org
+http_access allow httpbin
+ssl_bump bump httpbin
+sslproxy_cert_error allow httpbin
+ssl_bump stare httpbin
+
+refresh_pattern ^ftp:		1440	20%	10080
+refresh_pattern -i (/cgi-bin/|\?) 0	0%	0
+refresh_pattern .		0	20%	4320
+```
+
+* Run Squid:
+```
+docker run -d --name squid -v .:/squid -p 3128:3128 -it yutony/squid:4.10 \
+    squid -f /squid/$prefix-bump.conf -NYC
+```
+
+* Create empty log file:
+```
+touch "$prefix"-bump.log
+```
+
+* Add it in wireshark
+```
+sudo wireshark -k -i any
+# Edit -> Preferences -> Protocols
+```
+
+* Send queries:
+```
+SSLKEYLOGFILE="$prefix"-bump.log curl --tlsv1.2 --tls-max 1.2 -v --proxy "$proxy" -k https://httpbin.org/get?bio="$name"
+```
+
+* Stop Squid:
+```
+docker rm "$(docker stop squid)"
 ```
