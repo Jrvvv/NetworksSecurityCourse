@@ -141,10 +141,15 @@ curl -v --proxy http://localhost:3128 "http://httpbin.org/get?bio=vericheveo"
 
 * Check resources ip:
 ```
-dig +short ident.me | head -1
+dig +short ident.me
 # 65.108.151.63
-dig +short httpbin.org | head -1
-# 3.232.74.21
+dig +short httpbin.org
+# 3.219.87.227
+# 52.205.123.206
+# 54.83.21.156
+# 52.6.181.49
+# 18.214.194.42
+# 100.29.246.92
 ```
 
 * Run Wireshark for any interface:
@@ -156,17 +161,26 @@ sudo wireshark -k -i any
 ```
 (tcp) and
 (tcp.port == 3128 or
-  (tcp.port == 80) or
-  ((http.host contains "ident.me" or http.host contains "httpbin.org") and (ip.addr == 65.108.151.63 or ip.addr == 3.232.74.21))
-) and 
+  (tcp.port == 80) or (
+    (
+      http.host contains "ident.me" or
+      http.host contains "httpbin.org"
+    ) or (
+      (
+        ip.addr in {65.108.151.63} or
+        ip.addr in {3.219.87.227,
+                    52.205.123.206,
+                    54.83.21.156,
+                    52.6.181.49,
+                    18.214.194.42,
+                    100.29.246.92}
+      ) and (
+        ip.addr in {172.17.0.1, 172.17.0.2}
+      )
+    )
+  )
+) and
 !tcp.analysis.flags
-```
-
-* Or run with BPF filter (not reccomended):
-```
-IDENT_IP=dig +short ident.me | head -1
-HTTPBIN_IP=dig +short httpbin.org | head -1
-sudo wireshark -k -i any -f "tcp and (port 3128 or (port 80 and (host $IDENT_IP or host $HTTPBIN_IP)))"
 ```
 
 ## Header modification
